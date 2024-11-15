@@ -1,6 +1,7 @@
 #pragma once
 
 // Defined before including GLEW to suppress deprecation messages on macOS
+#include "utils/sceneparser.h"
 #ifdef __APPLE__
 #define GL_SILENCE_DEPRECATION
 #endif
@@ -48,5 +49,31 @@ private:
     std::unordered_map<Qt::Key, bool> m_keyMap;         // Stores whether keys are pressed or not
 
     // Device Correction Variables
-    double m_devicePixelRatio;
+    int m_devicePixelRatio;
+
+    int m_width;
+    int m_height;
+
+    GLuint m_shader;
+
+    float m_ka;
+    float m_kd;
+    float m_ks;
+
+    std::vector<int> lightTypes;
+    std::vector<glm::vec4> lightDirs;
+    std::vector<glm::vec4> lightPos;
+    std::vector<glm::vec4> lightColors;
+    std::vector<glm::vec3> functions;
+    std::vector<float> angles;
+    std::vector<float> penumbras;
+
+    std::vector<std::vector<float>> vertsList;
+    bool sceneLoaded = false;
+
+    bool initialized = false;
+
+    void draw(RenderShapeData shape);
+    void setUpShapes();
+    void setUpLights(std::string filepath, RenderData &renderData);
 };
