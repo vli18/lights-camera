@@ -20,16 +20,29 @@ void Cone::makeConeSurface() {
     float radius = 0.5f;              // Base radius
     float height = 1.0f;              // Height of the cone
 
-    // Loop over the circular base subdivisions
+    // Slope vector for the implicit cone
+    float slope = radius / height;
+
+    // Precompute base vertices and normals for all segments
+    std::vector<glm::vec3> baseVertices(m_param2);
+    std::vector<glm::vec3> baseNormals(m_param2);
+
     for (int i = 0; i < m_param2; ++i) {
         float angle = 2.0f * M_PI * i / m_param2;
-        float nextAngle = 2.0f * M_PI * (i + 1) / m_param2;
+        baseVertices[i] = glm::vec3(radius * cos(angle), -0.5f, radius * sin(angle));
+        baseNormals[i] = glm::normalize(glm::vec3(baseVertices[i].x, slope, baseVertices[i].z));
+    }
 
-        // Base vertices for this segment
-        glm::vec3 base1(radius * cos(angle), -0.5f, radius * sin(angle));
-        glm::vec3 base2(radius * cos(nextAngle), -0.5f, radius * sin(nextAngle));
+    // Loop over the circular base subdivisions
+    for (int i = 0; i < m_param2; ++i) {
+        int nextIndex = (i + 1) % m_param2; // Wrap around at the end
 
-        // Loop over vertical subdivisions
+        glm::vec3 base1 = baseVertices[i];
+        glm::vec3 base2 = baseVertices[nextIndex];
+        glm::vec3 normal1 = baseNormals[i];
+        glm::vec3 normal2 = baseNormals[nextIndex];
+
+        // Loop over vertical subdivisions (latitude tessellation)
         for (int j = 0; j < m_param1; ++j) {
             float t1 = static_cast<float>(j) / m_param1;         // Interpolation factor for segment 1
             float t2 = static_cast<float>(j + 1) / m_param1;     // Interpolation factor for segment 2
@@ -40,28 +53,46 @@ void Cone::makeConeSurface() {
             glm::vec3 interp3 = glm::mix(base1, apex, t2);
             glm::vec3 interp4 = glm::mix(base2, apex, t2);
 
-            // Normals for the interpolated vertices
-            glm::vec3 normal1 = glm::normalize(glm::vec3(interp1.x, height / radius, interp1.z));
-            glm::vec3 normal2 = glm::normalize(glm::vec3(interp2.x, height / radius, interp2.z));
-            glm::vec3 normal3 = glm::normalize(glm::vec3(interp3.x, height / radius, interp3.z));
-            glm::vec3 normal4 = glm::normalize(glm::vec3(interp4.x, height / radius, interp4.z));
+            // Use the same normals as the base for the entire vertical subdivision
+            glm::vec3 normalInterp1 = glm::normalize(glm::mix(normal1, normal1, t1));
+            glm::vec3 normalInterp2 = glm::normalize(glm::mix(normal2, normal2, t1));
+            glm::vec3 normalInterp3 = glm::normalize(glm::mix(normal1, normal1, t2));
+            glm::vec3 normalInterp4 = glm::normalize(glm::mix(normal2, normal2, t2));
 
             // First triangle (interp1 -> interp2 -> interp3)
             insertVec3(m_vertexData, interp1);
-            insertVec3(m_vertexData, normal1);
+            insertVec3(m_vertexData, normalInterp1);
             insertVec3(m_vertexData, interp3);
-            insertVec3(m_vertexData, normal3);
+            insertVec3(m_vertexData, normalInterp3);
             insertVec3(m_vertexData, interp2);
-            insertVec3(m_vertexData, normal2);
+            insertVec3(m_vertexData, normalInterp2);
 
             // Second triangle (interp3 -> interp4 -> interp2)
             insertVec3(m_vertexData, interp3);
-            insertVec3(m_vertexData, normal3);
+            insertVec3(m_vertexData, normalInterp3);
             insertVec3(m_vertexData, interp4);
-            insertVec3(m_vertexData, normal4);
+            insertVec3(m_vertexData, normalInterp4);
             insertVec3(m_vertexData, interp2);
-            insertVec3(m_vertexData, normal2);
+            insertVec3(m_vertexData, normalInterp2);
         }
+    }
+
+    // Add the cone tip normals (reusing the base normals)
+    for (int i = 0; i < m_param2; ++i) {
+        int nextIndex = (i + 1) % m_param2;
+
+        glm::vec3 base1 = baseVertices[i];
+        glm::vec3 base2 = baseVertices[nextIndex];
+        glm::vec3 normal1 = baseNormals[i];
+        glm::vec3 normal2 = baseNormals[nextIndex];
+
+        // Tip triangle (apex -> base2 -> base1)
+        insertVec3(m_vertexData, apex);
+        insertVec3(m_vertexData, normal1); // Use the same normal as base1
+        insertVec3(m_vertexData, base2);
+        insertVec3(m_vertexData, normal2);
+        insertVec3(m_vertexData, base1);
+        insertVec3(m_vertexData, normal1);
     }
 }
 
